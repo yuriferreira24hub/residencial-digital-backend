@@ -1,0 +1,514 @@
+openapi: 3.0.3
+info:
+  title: Seguro Residencial API
+  version: "1.0.0"
+  description: |
+    API para gestão de seguros residenciais.
+    Este sistema permite:
+      - Autenticação JWT
+      - Gerenciamento de usuários
+      - Cadastro de imóveis
+      - Cotações
+      - Emissão de apólices
+      - Registro e acompanhamento de sinistros
+      - Pagamentos
+      - Consulta de domínios
+      - Geração de documentos PDF
+
+servers:
+  - url: http://localhost:3000/v1
+    description: Desenvolvimento
+  - url: https://api.seguradora.com/v1
+    description: Produção
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    # ---------------------------
+    # Erros
+    # ---------------------------
+    Error:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              errorCode:
+                type: string
+              errorMessage:
+                type: string
+              messageType:
+                type: string
+              uuid:
+                type: string
+
+    # ---------------------------
+    # Auth
+    # ---------------------------
+    AuthRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+
+    # ---------------------------
+    # Usuários
+    # ---------------------------
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [client, admin]
+
+    # ---------------------------
+    # Imóveis
+    # ---------------------------
+    Property:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        address:
+          type: string
+        addressNumber:
+          type: string
+        district:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zipCode:
+          type: string
+        type:
+          type: string
+        constructionType:
+          type: string
+        area:
+          type: number
+        estimatedValue:
+          type: number
+
+    # ---------------------------
+    # Cotações
+    # ---------------------------
+    QuoteRequest:
+      type: object
+      required:
+        - clientName
+        - cpfCnpj
+        - initialDateInsurance
+        - riskDataAddress
+        - listCoverage
+      properties:
+        clientName:
+          type: string
+        cpfCnpj:
+          type: string
+        assistanceType:
+          type: integer
+        guaranteeType:
+          type: integer
+        initialDateInsurance:
+          type: string
+        insuranceType:
+          type: integer
+        isopainel:
+          type: string
+          enum: [S, N]
+        congenereId:
+          type: string
+        apoliceNumber:
+          type: string
+        paymentData:
+          type: object
+          properties:
+            capDiscount: { type: number }
+            commission: { type: number }
+            paymentMode: { type: integer }
+            paymentOption: { type: integer }
+
+        riskCategoryData:
+          type: object
+          properties:
+            buyerType: { type: integer }
+            housingType: { type: integer }
+            propertyUse: { type: integer }
+            typeConstruction: { type: integer }
+            activityType: { type: integer }
+
+        riskDataAddress:
+          $ref: '#/components/schemas/Property'
+
+        listCoverage:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              sumInsured: { type: number }
+
+    QuoteResponse:
+      type: object
+      properties:
+        quotationNumber:
+          type: string
+        packages:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: integer }
+              description: { type: string }
+              premium: { type: number }
+              paymentMethods:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    code: { type: integer }
+                    description: { type: string }
+                    installments:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          quantity: { type: integer }
+                          value: { type: number }
+
+    # ---------------------------
+    # Apólices
+    # ---------------------------
+    Policy:
+      type: object
+      properties:
+        id: { type: integer }
+        policyNumber: { type: string }
+        status: { type: string }
+        validFrom: { type: string }
+        validTo: { type: string }
+        premium: { type: number }
+        quoteId: { type: integer }
+
+    # ---------------------------
+    # Sinistros
+    # ---------------------------
+    Claim:
+      type: object
+      properties:
+        id: { type: integer }
+        policyId: { type: integer }
+        description: { type: string }
+        dateOccurred: { type: string }
+        estimatedValue: { type: number }
+        status: { type: string }
+
+    # ---------------------------
+    # Pagamentos
+    # ---------------------------
+    Payment:
+      type: object
+      properties:
+        id: { type: integer }
+        policyId: { type: integer }
+        amount: { type: number }
+        dueDate: { type: string }
+        status:
+          type: string
+          enum: [pending, paid, failed]
+
+    # ---------------------------
+    # Domínios
+    # ---------------------------
+    DomainItem:
+      type: object
+      properties:
+        code: { type: integer }
+        description: { type: string }
+
+    # ---------------------------
+    # Documentos
+    # ---------------------------
+    DocumentResponse:
+      type: object
+      properties:
+        base64:
+          type: string
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  # ============================================================
+  # AUTH
+  # ============================================================
+  /auth/login:
+    post:
+      summary: Login do usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        "200":
+          description: Login realizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        "401":
+          description: Credenciais inválidas
+
+  # ============================================================
+  # USERS
+  # ============================================================
+  /users:
+    post:
+      summary: Criar usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        "201":
+          description: Usuário criado
+    get:
+      summary: Listar usuários (admin)
+      security: [bearerAuth: []]
+      responses:
+        "200":
+          description: Lista de usuários
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+  # ============================================================
+  # PROPERTIES
+  # ============================================================
+  /properties:
+    post:
+      summary: Cadastrar imóvel
+      security: [bearerAuth: []]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Property'
+      responses:
+        "201":
+          description: Imóvel cadastrado
+
+    get:
+      summary: Listar imóveis do usuário
+      security: [bearerAuth: []]
+      responses:
+        "200":
+          description: Lista de imóveis
+
+  # ============================================================
+  # DOMAINS
+  # ============================================================
+  /domains:
+    post:
+      summary: Buscar domínio (lista de valores permitidos)
+      security: [bearerAuth: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+      responses:
+        "200":
+          description: Lista de valores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DomainItem'
+
+  # ============================================================
+  # QUOTES
+  # ============================================================
+  /quotes:
+    post:
+      summary: Criar cotação
+      security: [bearerAuth: []]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteRequest'
+      responses:
+        "200":
+          description: Retorno da cotação
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteResponse'
+
+  # ============================================================
+  # POLICIES
+  # ============================================================
+  /policies:
+    post:
+      summary: Emitir apólice
+      security: [bearerAuth: []]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quoteId:
+                  type: integer
+                paymentChoice:
+                  type: object
+      responses:
+        "201":
+          description: Apólice emitida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+
+    get:
+      summary: Listar apólices do usuário
+      security: [bearerAuth: []]
+      parameters:
+        - in: query
+          name: userId
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de apólices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Policy'
+
+  # ============================================================
+  # CLAIMS
+  # ============================================================
+  /claims:
+    post:
+      summary: Registrar sinistro
+      security: [bearerAuth: []]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Claim'
+      responses:
+        "201":
+          description: Sinistro registrado
+
+    get:
+      summary: Listar sinistros
+      security: [bearerAuth: []]
+      parameters:
+        - in: query
+          name: policyId
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de sinistros
+
+  # ============================================================
+  # PAYMENTS
+  # ============================================================
+  /payments:
+    post:
+      summary: Criar cobrança
+      security: [bearerAuth: []]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Payment'
+      responses:
+        "201":
+          description: Pagamento gerado
+
+    patch:
+      summary: Atualizar status do pagamento (Webhook)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                paymentId: { type: integer }
+                status: { type: string }
+      responses:
+        "200":
+          description: Atualizado
+
+  # ============================================================
+  # DOCUMENTS
+  # ============================================================
+  /documents:
+    post:
+      summary: Gerar documento PDF (cotação, apólice)
+      security: [bearerAuth: []]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                policyId: { type: integer }
+                type:
+                  type: string
+                  enum: [quote, policy]
+      responses:
+        "200":
+          description: Documento em base64
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'

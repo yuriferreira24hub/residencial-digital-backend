@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("client")
+  createdAt    DateTime @default(now())
+
+  properties Property[]
+  quotes     Quote[]
+  policies   Policy[]
+}
+
+model Property {
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+
+  type     String // casa, apartamento, sobrado etc.
+  address  String
+  number   String?
+  district String?
+  city     String
+  state    String
+  zipCode  String
+
+  riskCategory     String? // baixo, médio, alto
+  constructionYear Int?
+  area             Float? // área construída em m²
+  estimatedValue   Float? // valor aproximado do imóvel
+
+  createdAt DateTime @default(now())
+
+  quotes Quote[]
+}
+
+model Quote {
+  id         Int       @id @default(autoincrement())
+  userId     Int?
+  propertyId Int?
+  user       User?     @relation(fields: [userId], references: [id])
+  property   Property? @relation(fields: [propertyId], references: [id])
+
+  quotationNumber String?
+  request         Json
+  response        Json?
+
+  status          String   @default("pending")
+  rejectionReason String? // <-- ADICIONAR
+  createdAt       DateTime @default(now())
+
+  policies Policy[]
+}
+
+model Policy {
+  id     Int   @id @default(autoincrement())
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
+
+  quoteId Int?
+  quote   Quote? @relation(fields: [quoteId], references: [id])
+
+  policyNumber String?   @unique
+  status       String    @default("active")
+  validFrom    DateTime?
+  validTo      DateTime?
+  premium      Float?
+
+  createdAt DateTime @default(now())
+
+  claims    Claim[]
+  payments  Payment[]
+  documents Document[]
+}
+
+model Claim {
+  id       Int    @id @default(autoincrement())
+  policyId Int
+  policy   Policy @relation(fields: [policyId], references: [id])
+
+  description    String
+  dateOccurred   DateTime
+  estimatedValue Float?
+  status         String   @default("registered")
+
+  createdAt DateTime @default(now())
+}
+
+model Payment {
+  id       Int     @id @default(autoincrement())
+  policyId Int?
+  policy   Policy? @relation(fields: [policyId], references: [id])
+
+  amount            Float
+  dueDate           DateTime
+  status            String   @default("pending")
+  externalReference String?
+
+  createdAt DateTime @default(now())
+}
+
+model Document {
+  id       Int     @id @default(autoincrement())
+  policyId Int?
+  policy   Policy? @relation(fields: [policyId], references: [id])
+
+  type       String
+  filename   String?
+  storageKey String?
+  meta       Json?
+
+  createdAt DateTime @default(now())
+}
+
+model DomainCache {
+  id          Int      @id @default(autoincrement())
+  code        String
+  value       Json
+  lastUpdated DateTime @default(now())
+}
