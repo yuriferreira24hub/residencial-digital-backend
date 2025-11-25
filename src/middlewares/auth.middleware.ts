@@ -2,22 +2,25 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
 const publicPaths = [
-  "/users",      
-  "/auth/login", 
-  "/domains",    
-  "/quotes"      
+  "/auth/login",
+  "/users",
+  "/quotes/public"
 ];
 
 export default function authMiddleware(req: Request, res: Response, next: NextFunction) {
 
-  // Verifica se a rota é pública
-  const isPublic = publicPaths.some(path => req.path.startsWith(path));
+  const cleanPath = req.path.replace("/v1", "");
+
+  console.log("PATH:", req.path);
+  console.log("CLEAN PATH:", cleanPath);
+
+  const isPublic = publicPaths.some(path => cleanPath.startsWith(path));
+  console.log("Public:", isPublic);
 
   if (isPublic) {
     return next();
   }
 
-  // A partir daqui, requer token
   const header = req.headers.authorization;
   
   if (!header) {
@@ -27,9 +30,15 @@ export default function authMiddleware(req: Request, res: Response, next: NextFu
   const [, token] = header.split(" ");
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
-    (req as any).user = decoded;
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+
+    req.user = {
+      id: decoded.sub || decoded.id,   
+      role: decoded.role || "client"
+    };
+
     return next();
+
   } catch (err) {
     return res.status(401).json({ message: "Token inválido" });
   }

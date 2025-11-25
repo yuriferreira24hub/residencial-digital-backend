@@ -367,6 +367,33 @@ paths:
                 items:
                   $ref: '#/components/schemas/DomainItem'
 
+  /domains/{code}:
+    get:
+      summary: Consultar domínios por código
+      description: "Ex.: 9999 retorna lista de coberturas"
+      security: [bearerAuth: []]
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: integer
+          description: Código do domínio (ex.: 9999)
+      responses:
+        "200":
+          description: Domínios obtidos com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DomainItem'
+
   # ============================================================
   # QUOTES
   # ============================================================
