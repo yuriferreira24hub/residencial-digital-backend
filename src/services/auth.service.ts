@@ -1,3 +1,5 @@
+console.log("SECRET auth.service:", process.env.JWT_SECRET);
+
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../utils/prisma';

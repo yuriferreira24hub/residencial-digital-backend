@@ -117,3 +117,12 @@ export async function getPendingQuotes(user: any) {
 
   return quoteRepo.findPending();
 }
+
+export async function createPublicQuote(payload: any) {
+  return quoteRepo.create({
+    request: payload,
+    status: "pending",
+    userId: null,
+    propertyId: null
+  });
+}

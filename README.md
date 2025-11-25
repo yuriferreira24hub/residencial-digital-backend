@@ -1,247 +1,252 @@
-📌 README.md — Mini Residencial Digital
+# Mini Residencial Digital — API Backend
 
-🏠 Sistema de Seguros Residencial — API Backend
+Sistema de Seguros Residencial — API REST moderna, em Node.js/TypeScript, com autenticação JWT, Prisma ORM e PostgreSQL (via Docker). Arquitetura limpa com camadas de rotas, controllers, services e repositories.
 
-Este projeto é uma API REST moderna para gerenciamento de seguros residenciais, construída com:
+📚 Sumário
+- Visão Geral
+- Stack Técnica
+- Arquitetura & Fluxo de Requisição
+- Estrutura de Pastas
+- Ambiente & Configuração (.env)
+- Instalação & Execução
+- Scripts Disponíveis
+- Banco de Dados & Prisma
+- Autenticação & Autorização
+- Fluxo de Cotações (Pública vs Autenticada)
+- Endpoints Principais (Resumo)
+- Exemplos de Requisição
+- Validação & Erros
+- Domínios (Integração / Mock)
+- Boas Práticas e Segurança
+- Roadmap / Próximas Melhorias
+- Contribuição
+- Licença
 
-Node.js + Express
+## 1. Visão Geral
+- Cadastro e autenticação de usuários (JWT)
+- Registro de imóveis (properties)
+- Criação de cotações (públicas e autenticadas)
+- Aprovação/Rejeição de cotações (admin)
+- Emissão de apólices automática após aprovação
+- Consulta de domínios (mock de integração externa)
+- Estrutura extensível para sinistros, pagamentos e documentos
 
-TypeScript
+## 2. Stack Técnica
+- Runtime: Node.js 20+
+- Framework: Express
+- Linguagem: TypeScript
+- ORM / Banco: Prisma + PostgreSQL
+- Autenticação: JWT
+- Validação: Zod
+- Logs: Console (evolutivo)
+- Container DB: Docker (Postgres 15)
 
-Prisma ORM
+## 3. Arquitetura & Fluxo de Requisição
+- Cliente → `routes/*`
+- Controller: valida e orquestra
+- Service: regras de negócio
+- Repository: acesso ao banco (Prisma)
+- Resposta → `error.middleware` trata erros
+- Middlewares: `cors`, `express.json`, `authMiddleware`, `errorMiddleware`
 
-PostgreSQL (via Docker)
+## 4. Estrutura de Pastas
+```
+src/
+ ├─ app.ts                 # Configuração Express
+ ├─ server.ts              # Inicialização + dotenv
+ ├─ routes/                # Endpoints HTTP
+ ├─ controllers/           # Camada HTTP
+ ├─ services/              # Regras de negócio
+ ├─ repositories/          # Prisma abstractions
+ ├─ dtos/                  # Schemas de validação (Zod)
+ ├─ middlewares/           # Auth, error, validate
+ ├─ utils/                 # jwt, prisma, logger
+ └─ @types/express         # Extensão de Request (req.user)
+prisma/
+ ├─ schema.prisma          # Modelo de dados
+ └─ migrations/            # Histórico de migrações
+scripts/
+ └─ create-admin.ts        # Seed de administrador
+openapi.yaml                # Documentação manual (referência)
+```
 
-JWT Authentication
+## 5. Ambiente & Configuração (.env)
+Crie `.env` na raiz:
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/segurodb?schema=public"
+JWT_SECRET="super-secret"
+PORT=3000
+```
 
-Zod Validation
-
-Arquitetura limpa (controllers, services, repositories)
-
-A API permite:
-
-✔ Cadastro e autenticação de usuários
-✔ Cadastro de imóveis
-✔ Criação de cotações
-✔ Aprovação/Rejeição pelo administrador
-✔ Emissão automática de apólices
-✔ Listagem de apólices, cotações e propriedades
-✔ Controle de acesso via roles (admin / client)
-
-🚀 1. Como rodar o projeto
-1️⃣ Instale as dependências:
+## 6. Instalação & Execução (PowerShell)
+```powershell
+# Instalar dependências
 npm install
 
-2️⃣ Inicie o Postgres com Docker:
-docker run --name residencial-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=segurodb -p 5432:5432 -d postgres:15
+# Subir Postgres
+docker run --name residencial-db `
+  -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=segurodb `
+  -p 5432:5432 -d postgres:15
 
-3️⃣ Crie as tabelas com Prisma:
+# Rodar migrações
 npx prisma migrate dev --name init
 
-4️⃣ Inicie o servidor:
-npm run dev
+# Gerar cliente Prisma
+npx prisma generate
 
-
-Se tudo estiver OK:
-
-Servidor rodando na porta: 3000
-
-🔐 2. Criando o usuário ADMIN
-
-Crie um script em:
-
-📁 scripts/create-admin.ts
-
-Depois execute:
-
+# Criar usuário admin (seed)
 npx ts-node scripts/create-admin.ts
 
+# Iniciar em desenvolvimento
+npm run dev
+```
+Base URL: `http://localhost:3000/v1`
 
-O admin será criado com:
+## 7. Scripts Disponíveis
+- `npm run dev`: Desenvolvimento com reload
+- `npm run build`: Compila TS → dist
+- `npm start`: Roda versão compilada
+- `npm run prisma:generate`: Gera cliente Prisma
+- `npm run prisma:migrate`: Migração de desenvolvimento
 
-email: admin@test.com
+## 8. Banco de Dados & Prisma
+- Entidades: `User`, `Property`, `Quote`, `Policy` (evolução: `Claim`, `Payment`, `Document`)
+- Relacionamentos:
+  - User 1—N Property
+  - User 1—N Quote
+  - Quote 1—N Policy
 
-senha: admin123
+## 9. Autenticação & Autorização
+- Login: `POST /v1/auth/login`
+- Header: `Authorization: Bearer <token>`
+- `authMiddleware` popula `req.user = { id, role }`
+- Rotas admin exigem `role = "admin"`
 
-Use esse login para acessar rotas administrativas.
+Exemplo login:
+```http
+POST /v1/auth/login
+Content-Type: application/json
 
-👤 3. Autenticação (Login)
-📌 POST /v1/auth/login
-Body:
-{
-  "email": "admin@test.com",
-  "password": "admin123"
-}
-
+{ "email": "admin@test.com", "password": "admin123" }
+```
 Resposta:
-{
-  "token": "JWT_TOKEN",
-  "user": {
-    "id": 9,
-    "role": "admin"
-  }
-}
+```json
+{ "token": "JWT_TOKEN", "user": { "id": 1, "role": "admin" } }
+```
 
+## 10. Fluxo de Cotações (Pública vs Autenticada)
+- Pública: `POST /v1/quotes/public`
+```http
+POST /v1/quotes/public
+Content-Type: application/json
 
-Use esse token no Postman → Headers:
-
-Authorization: Bearer SEU_TOKEN
-
-👥 4. CRUD de Usuários
-➤ Criar usuário
-
-POST /v1/users
-
-{
-  "name": "Yuri",
-  "email": "yuri@test.com",
-  "password": "123456"
-}
-
-➤ Listar usuários (apenas admin)
-
-GET /v1/users
-
-➤ Buscar usuário por ID
-
-GET /v1/users/:id
-
-➤ Atualizar usuário
-
-PUT /v1/users/:id
-
-➤ Excluir usuário
-
-DELETE /v1/users/:id
-
-🏠 5. Propriedades (Imóveis)
-➤ Criar imóvel
-
-POST /v1/properties
-
-{
-  "type": "Casa",
-  "address": "Rua 1",
-  "number": "120",
-  "district": "Centro",
-  "city": "São José",
-  "state": "SC",
-  "zipCode": "88103760",
-  "riskCategory": "baixo",
-  "area": 120
-}
-
-➤ Listar imóveis do usuário
-
-GET /v1/properties
-
-➤ Buscar imóvel por ID
-
-GET /v1/properties/:id
-
-📄 6. Cotações
-6.1 Criar cotação
-
+{ "clientName": "Fulano", "cpfCnpj": "12345678901", "initialDateInsurance": "20250101", "listCoverage": [ { "code": "INCENDIO", "sumInsured": 50000 } ] }
+```
+- Autenticada: `POST /v1/quotes`
+```http
 POST /v1/quotes
+Authorization: Bearer <token>
+Content-Type: application/json
 
-{
-  "clientName": "João da Silva",
-  "cpfCnpj": "12345678901",
-  "initialDateInsurance": "20250101",
-  "propertyId": 1,
-  "listCoverage": [
-    { "code": "INCENDIO", "sumInsured": 50000 },
-    { "code": "ROUBO", "sumInsured": 10000 }
-  ]
-}
+{ "clientName": "Maria Silva", "cpfCnpj": "98765432100", "initialDateInsurance": "20250101", "propertyId": 8, "listCoverage": [ { "code": "INCENDIO", "sumInsured": 50000 }, { "code": "ROUBO", "sumInsured": 10000 } ] }
+```
+- Comportamento: valida propriedade do usuário, monta `riskDataAddress`, status `pending`
+- Admin: `POST /v1/quotes/:id/approve`, `POST /v1/quotes/:id/reject`
 
+Exemplo (rejeitar – admin):
+```http
+POST /v1/quotes/9/reject
+Authorization: Bearer <token_admin>
+Content-Type: application/json
 
-A API automaticamente:
+{ "reason": "Coberturas incompatíveis com perfil do imóvel" }
+```
+Resposta esperada:
+```json
+{ "message": "Cotação rejeitada com sucesso." }
+```
 
-✔ Busca o imóvel
-✔ Gera o endereço de risco
-✔ Cria a cotação com status "pending"
+## 11. Endpoints Principais (Resumo)
+- `POST   /v1/auth/login`         —     Pública    —        Gera JWT
+- `POST   /v1/users`              —     Pública    —        Cria usuário
+- `GET    /v1/users`              —     Admin      —        Lista usuários
+- `POST   /v1/properties`         —     JWT        —        Cria imóvel
+- `GET    /v1/properties`         —     JWT        —        Lista imóveis do usuário
+- `POST   /v1/quotes/public`      —     Pública    —        Cotação desvinculada
+- `POST   /v1/quotes`             —     JWT        —        Cotação vinculada a imóvel
+- `GET    /v1/quotes`             —     JWT        —        Lista cotações do usuário
+- `GET    /v1/quotes/pending`     —     Admin      —        Lista pendentes
+- `POST   /v1/quotes/:id/approve` —     Admin      —        Aprova e gera apólice
+- `POST   /v1/quotes/:id/reject`  —     Admin      —        Rejeita cotação
+- `GET    /v1/domains/:code`      —     JWT        —        Domínios mock (Allianz)
+- `GET    /v1/policies`           —     JWT        —        Lista apólices do usuário
+- `GET    /v1/policies/:id`       —     JWT        —        Detalhe apólice
 
-6.2 Listar cotações do usuário
+## 12. Exemplos de Requisição
+- Criar imóvel:
+```http
+POST /v1/properties
+Authorization: Bearer <token>
+Content-Type: application/json
 
-GET /v1/quotes
+{ "type": "Casa", "address": "Rua Exemplo", "city": "São José", "state": "SC", "zipCode": "88103760", "riskCategory": "baixo", "constructionYear": 2015, "area": 90, "estimatedValue": 300000 }
+```
+- Aprovar cotação:
+```http
+POST /v1/quotes/9/approve
+Authorization: Bearer <token_admin>
+```
 
-6.3 Listar cotações pendentes (ADMIN)
+## 13. Validação & Erros
+- Zod nos DTOs: mensagens claras e campos obrigatórios
+- Padrões:
+  - 400: entrada inválida / regra de negócio
+  - 401: não autenticado
+  - 403: sem permissão
+  - 404: não encontrado
+  - 422: validação
+  - 500: erro inesperado
 
-GET /v1/quotes/pending
+## 14. Domínios (Integração / Mock)
+- `GET /v1/domains/9999` → lista de coberturas
+- Baseado em `AllianzService` (mock)
 
-6.4 Buscar cotação
+## 15. Boas Práticas e Segurança
+- Adicionar `helmet` e rate limiting em produção
+- Aumentar custo do `bcrypt` (ex.: 12)
+- Não expor `JWT_SECRET`
+- Middleware dedicado `requireAdmin`
+- Sanitização de entradas
 
-GET /v1/quotes/:id
+## 16. Roadmap / Próximas Melhorias
+- Middleware `requireAdmin`
+- Paginação (`skip`/`take`)
+- Enums de status no Prisma
+- Testes (Jest + supertest)
+- Logs estruturados (Pino/Winston)
+- Refresh token & revogação
+- Cache (Redis) para domínios
+- OpenTelemetry
+- Integração externa real
 
-📝 7. Aprovar Cotação (ADMIN)
-POST /v1/quotes/:id/approve
+## 17. Contribuição
+- Fork / clone
+- Branch: `feat/minha-feature`
+- (Futuro) testes / linter
+- Pull Request com descrição clara
 
-Não precisa enviar body.
+## 18. Licença
+MIT (ajustável conforme necessidade)
 
-Resposta:
+## OpenAPI & Swagger UI
+- `openapi.yaml` descreve os endpoints
+- Swagger UI: `http://localhost:3000/docs`
+- Auxiliares: `GET /openapi.json`, `GET /openapi.yaml`
 
-{
-  "message": "Cotação aprovada e apólice emitida.",
-  "policy": {
-    "policyNumber": "POL17631476...",
-    "status": "active"
-  }
-}
-
-❌ 8. Rejeitar cotação (ADMIN)
-POST /v1/quotes/:id/reject
-
-Body:
-
-{
-  "reason": "Dados incompletos"
-}
-
-📜 9. Apólices
-➤ Listar apólices do usuário
-
-GET /v1/policies
-
-➤ Buscar apólice
-
-GET /v1/policies/:id
-
-🛠 10. Estrutura do projeto
-src/
- ├── controllers/
- ├── services/
- ├── routes/
- ├── repositories/
- ├── dtos/
- ├── middlewares/
- ├── utils/
- └── app.ts
-
-🧪 11. Testes com Postman
-
-Sempre enviar o JWT no header:
-
-Authorization: Bearer SEU_TOKEN
-
-
-Apenas ADMIN pode:
-
-/v1/quotes/pending
-
-/v1/quotes/:id/approve
-
-/v1/quotes/:id/reject
-
-🎯 Final
-
-Seu backend está pronto para produção, com:
-
-✔ Autenticação JWT
-✔ Controle de acesso por roles
-✔ Fluxo completo de cotação → apólice
-✔ CRUD de usuário
-✔ CRUD de imóvel
-✔ Gestão de cotações e apólices
-✔ Repositórios e services organizados
-✔ Prisma ORM + PostgreSQL via Docker
+## Troubleshooting
+- Locks do Prisma em Windows/OneDrive:
+  - Pare processos Node; rode `npx prisma generate`
+- `GET /v1/quotes/pending` 404:
+  - Garanta `/pending` antes de `/:id` em `quotes.routes.ts`
+- Campos de `Property`:
+  - Use `riskCategory`, `area`, `estimatedValue` (e `constructionYear?`)

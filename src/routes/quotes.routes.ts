@@ -1,5 +1,4 @@
-import { Router } from "express";
-import authMiddleware from "../middlewares/auth.middleware";
+import { Router } from "express"; 
 import { validate } from "../middlewares/validate.middleware";
 import { CreateQuoteSchema } from "../dtos/quote.dto";
 import * as quoteController from "../controllers/quotes.controller";
@@ -7,25 +6,21 @@ import { RejectQuoteSchema } from "../dtos/reject-quote.dto";
 
 const router = Router();
 
-// Criar cotação
-router.post("/", validate(CreateQuoteSchema), quoteController.createQuote);
+// 🔓 ROTA PÚBLICA
+router.post("/public", quoteController.createPublicQuote);
 
-// Listar cotações
+// 🔐 ROTAS AUTENTICADAS
+router.post("/", validate(CreateQuoteSchema), quoteController.createQuote);
 router.get("/", quoteController.getQuotes);
 
-// Buscar uma cotação
+// 🔐 ROTAS ADMIN (sem parâmetros - devem vir antes das rotas com :id)
+router.get("/pending", quoteController.getPendingQuotes);
+
+// 🔐 ROTAS COM PARÂMETROS (devem vir por último)
 router.get("/:id", quoteController.getQuote);
-
-// ADMIN — listar pendentes
-router.get("/pending", authMiddleware, quoteController.getPendingQuotes);
-
-// ADMIN — Aprovar cotação
-router.post("/:id/approve", authMiddleware, quoteController.approveQuote);
-
-// ADMIN — Rejeitar cotação
+router.post("/:id/approve", quoteController.approveQuote);
 router.post(
     "/:id/reject",
-    authMiddleware,
     validate(RejectQuoteSchema),
     quoteController.rejectQuote
 );

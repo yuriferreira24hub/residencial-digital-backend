@@ -12,4 +12,5 @@ export const CreatePropertySchema = z.object({
   riskCategory: z.string().optional(),
   constructionYear: z.number().optional(),
   area: z.number().optional(),
+  estimatedValue: z.number().positive().optional(),
 });
