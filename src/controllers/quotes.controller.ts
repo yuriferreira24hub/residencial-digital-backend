@@ -10,7 +10,10 @@ export async function createQuote(req: Request, res: Response) {
     const result = await quoteService.createQuote(req.body, Number(user.id));
     return res.status(201).json(result);
   } catch (err: any) {
-    return res.status(400).json({ message: err.message });
+    const message = err.message || "Erro ao criar cotação";
+    const details = err.stack || err.toString();
+    console.error("createQuote error:", { message, details });
+    return res.status(400).json({ message, details });
   }
 }
 
@@ -23,7 +26,10 @@ export async function getQuotes(req: Request, res: Response) {
     const quotes = await quoteService.getQuotes(Number(user.id));
     return res.json(quotes);
   } catch (err: any) {
-    return res.status(400).json({ message: err.message });
+    const message = err.message || "Erro ao criar cotação";
+    const details = err.stack || err.toString();
+    console.error("createQuote error:", { message, details });
+    return res.status(400).json({ message, details });
   }
 }
 
@@ -55,7 +61,10 @@ export async function approveQuote(req: Request, res: Response) {
     );
     return res.json(result);
   } catch (err: any) {
-    return res.status(400).json({ message: err.message });
+    const message = err.message || "Erro ao criar cotação";
+    const details = err.stack || err.toString();
+    console.error("createQuote error:", { message, details });
+    return res.status(400).json({ message, details });
   }
 }
 
@@ -76,7 +85,10 @@ export async function rejectQuote(req: Request, res: Response) {
     return res.json(result);
 
   } catch (err: any) {
-    return res.status(400).json({ message: err.message });
+    const message = err.message || "Erro ao criar cotação";
+    const details = err.stack || err.toString();
+    console.error("createQuote error:", { message, details });
+    return res.status(400).json({ message, details });
   }
 }
 
@@ -102,7 +114,27 @@ export async function createPublicQuote(req: Request, res: Response) {
     const result = await quoteService.createPublicQuote(req.body);
     return res.status(201).json(result);
   } catch (err: any) {
-    return res.status(400).json({ message: err.message });
+    const message = err.message || "Erro ao criar cotação";
+    const details = err.stack || err.toString();
+    console.error("createQuote error:", { message, details });
+    return res.status(400).json({ message, details });
+  }
+}
+
+
+
+export async function confirmPayment(req: Request, res: Response) {
+  try {
+    const userId = req.user!.id;
+    const quoteId = req.params.id;
+    const { code, installments } = req.body;
+
+    const updatedQuote = await quoteService.confirmPayment(quoteId, Number(userId), { code, installments });
+    return res.json(updatedQuote);
+  } catch (err: any) {
+    console.error("Error confirming payment:", err);
+    const message = err.message || "Erro ao confirmar pagamento";
+    return res.status(400).json({ message, details: err.stack });
   }
 }
 

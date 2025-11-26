@@ -3,7 +3,15 @@ import { prisma } from "../utils/prisma";
 export const quoteRepo = {
   create: (data: any) =>
     prisma.quote.create({
-      data,
+      data: {
+        user: { connect: { id: Number(data.userId) } },
+        property: { connect: { id: Number(data.propertyId) } },
+        request: data.request,
+        status: data.status,
+        // Prisma schema compat: map and drop unsupported fields
+        quotationNumber: data.externalQuoteId ?? null,
+        response: data.allianzRaw ?? null,
+      },
     }),
 
   findById: (id: number) =>
