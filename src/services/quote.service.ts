@@ -2,6 +2,7 @@ import { quoteRepo } from "../repositories/quote.repo";
 import { propertyRepo } from "../repositories/property.repo";
 import { policyRepo } from "../repositories/policy.repo";
 
+import { AllianzService } from "../services/allianz.service";
 export async function createQuote(payload: any, userId: number) {
   const property = await propertyRepo.findById(payload.propertyId);
 
@@ -9,7 +10,8 @@ export async function createQuote(payload: any, userId: number) {
     throw new Error("Im√≥vel inv√°lido ou n√£o pertence ao Associado.");
   }
 
-  if (property.ownerCpfCnpj && payload.cpfCnpj && property.ownerCpfCnpj !== payload.cpfCnpj) {
+  const ownerCpfCnpj = (property as any).ownerCpfCnpj;
+  if (ownerCpfCnpj && payload.cpfCnpj && ownerCpfCnpj !== payload.cpfCnpj) {
     throw new Error("O CPF/CNPJ informado n√£o corresponde ao propriet√°rio deste im√≥vel.");
   }
 
@@ -38,17 +40,42 @@ export async function createQuote(payload: any, userId: number) {
     buyerType,
   };
 
-  const request = {
-    ...payload,
-    riskDataAddress,
+  // Build Allianz-specific payload (exclude frontend-only fields)
+  const allianzPayload = {
+    assistanceType: payload.assistanceType,
+    guaranteeType: payload.guaranteeType,
+    insuranceType: payload.insuranceType,
+    initialDateInsurance: payload.initialDateInsurance,
+    isopainel: payload.isopainel,
+    congenereId: payload.congenereId,
+    apoliceNumber: payload.apoliceNumber,
+    paymentData: payload.paymentData,
     riskCategoryData,
+    partnerData: payload.partnerData,
+    riskDataAddress,
+    listCoverage: payload.listCoverage,
   };
+
+  console.log("=== SENDING TO ALLIANZ ===");
+  console.log("Payload:", JSON.stringify(allianzPayload, null, 2));
+  console.log("========================");
+
+  const allianz = await new AllianzService().quote(allianzPayload);
+  
+  // Store original request for reference
+  const request = { ...payload, riskDataAddress, riskCategoryData };
+
+  const isPaymentOptions = request?.paymentData?.paymentMode === 0;
 
   const quote = await quoteRepo.create({
     userId,
     propertyId: property.id,
     request,
-    status: "pending",
+    status: isPaymentOptions ? "payment-options" : "pending",
+    externalQuoteId: allianz.externalQuoteId,
+    premiumTotal: allianz.premiumTotal,
+    paymentOptions: allianz.paymentOptions,
+    allianzRaw: allianz.raw,
   });
 
   return {
@@ -147,4 +174,49 @@ export async function createPublicQuote(payload: any) {
     propertyId: null
   });
 }
+
+
+
+
+
+
+
+export async function confirmPayment(quoteId: number, userId: number, paymentData: { code: string; installments: number }) {
+  const quote = await quoteRepo.findById(quoteId);
+
+  if (!quote || quote.userId !== userId) {
+    throw new Error("CotaÁ„o n„o encontrada ou n„o pertence ao usu·rio.");
+  }
+
+  if (quote.status !== "payment-options") {
+    throw new Error("Esta cotaÁ„o n„o est· aguardando seleÁ„o de pagamento.");
+  }
+
+  // Reconstruct the original request with selected payment
+  const request = {
+    ...quote.request,
+    paymentData: {
+      ...quote.request.paymentData,
+      paymentMode: paymentData.installments,
+      paymentOption: paymentData.installments,
+    },
+  };
+
+  const allianz = await new AllianzService().quote(request);
+
+  // Update quote with confirmed payment
+  const updated = await quoteRepo.update(quoteId, {
+    status: "pending",
+    externalQuoteId: allianz.externalQuoteId,
+    premiumTotal: allianz.premiumTotal,
+    paymentOptions: null,
+    allianzRaw: allianz.raw,
+  });
+
+  return {
+    message: "Meio de pagamento confirmado com sucesso",
+    quote: updated,
+  };
+}
+
 

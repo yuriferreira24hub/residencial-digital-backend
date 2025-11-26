@@ -1,0 +1,111 @@
+import fetch from "node-fetch";
+
+const BASE_URL = process.env.ALLIANZ_BASE_URL || "";
+const API_KEY = process.env.ALLIANZ_API_KEY || "";
+
+export interface AllianzQuotePayload {
+  assistanceType: number;
+  guaranteeType: number;
+  insuranceType: number;
+  initialDateInsurance: string; // ddMMyyyy
+  isopainel: string; // "S" | "N"
+  congenereId?: string;
+  apoliceNumber?: string;
+  paymentData: {
+    capDiscount?: number;
+    commission?: number;
+    commissionAntecipation?: string; // "S" | "N"
+    injury?: number;
+    paymentMode?: number; // 0 listar meios, >0 cotar
+    paymentOption?: number;
+  };
+  riskCategoryData: {
+    buyerType: number;
+    propertyUse: number;
+    typeConstruction: number;
+    activityType: number;
+  };
+  partnerData?: Record<string, string | undefined>;
+  riskDataAddress?: Record<string, any>;
+  listCoverage: Array<{ code: string; sumInsured: number }>;
+}
+
+export interface AllianzQuoteResponse {
+  externalQuoteId?: string;
+  premiumTotal?: number;
+  paymentOptions?: any;
+  raw?: any;
+}
+
+export async function postAllianzQuote(payload: AllianzQuotePayload): Promise<AllianzQuoteResponse> {
+  if (!BASE_URL || !API_KEY) {
+    return { raw: { warning: "Missing ALLIANZ_BASE_URL or ALLIANZ_API_KEY" } };
+  }
+
+  const url = `${BASE_URL}/v1/quotes`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${API_KEY}`,
+  };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(`Allianz error ${res.status}: ${JSON.stringify(data)}`);
+  }
+
+  return {
+    externalQuoteId: (data && (data.id || data.quoteId)) ?? undefined,
+    premiumTotal: (data && (data.premiumTotal || data.totalPremium)) ?? undefined,
+    paymentOptions: (data && data.paymentOptions) ?? undefined,
+    raw: data,
+  };
+}
+
+// Class wrapper to align with existing imports like `new AllianzService()`
+export class AllianzService {
+  constructor(private baseUrl: string = BASE_URL, private apiKey: string = API_KEY) {}
+
+  async quote(payload: AllianzQuotePayload): Promise<AllianzQuoteResponse> {
+    if (!this.baseUrl || !this.apiKey) {
+      return { raw: { warning: "Missing ALLIANZ_BASE_URL or ALLIANZ_API_KEY" } };
+    }
+    const url = `${this.baseUrl}/v1/quotes`;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${this.apiKey}`,
+    };
+    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(payload) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(`Allianz error ${res.status}: ${JSON.stringify(data)}`);
+    }
+    return {
+      externalQuoteId: (data && (data.id || data.quoteId)) ?? undefined,
+      premiumTotal: (data && (data.premiumTotal || data.totalPremium)) ?? undefined,
+      paymentOptions: (data && data.paymentOptions) ?? undefined,
+      raw: data,
+    };
+  }
+
+  // Mock de domínios conforme controller DomainsController
+  async getDomain(code: number): Promise<Array<{ code: number; description: string }>> {
+    // Se futuramente houver integração real, utilizar this.baseUrl/this.apiKey
+    if (code === 9999) {
+      return [
+        { code: 1, description: "Incêndio / Raio / Explosão" },
+        { code: 2, description: "Danos Elétricos" },
+        { code: 3, description: "Responsabilidade Civil Familiar" },
+      ];
+    }
+    // Outros códigos podem retornar listas diferentes ou vazias
+    return [];
+  }
+}
+
