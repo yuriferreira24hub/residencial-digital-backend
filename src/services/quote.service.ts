@@ -9,6 +9,10 @@ export async function createQuote(payload: any, userId: number) {
     throw new Error("Imóvel inválido ou não pertence ao Associado.");
   }
 
+  if (property.ownerCpfCnpj && payload.cpfCnpj && property.ownerCpfCnpj !== payload.cpfCnpj) {
+    throw new Error("O CPF/CNPJ informado não corresponde ao proprietário deste imóvel.");
+  }
+
   const riskDataAddress = {
     address: property.address,
     number: property.number,
@@ -18,9 +22,26 @@ export async function createQuote(payload: any, userId: number) {
     zipCode: property.zipCode,
   };
 
+  // Map to Allianz riskCategoryData
+  const housingType = property.type === 'Casa' ? 1 : 2; // 1: CASA, 2: APARTAMENTO
+  const typeConstruction = payload.constructionType === 'ALVENARIA' ? 1 :
+    payload.constructionType === 'MADEIRA' ? 2 : 1; // default ALVENARIA
+  const activityType = typeof payload.activityType === 'number' ? payload.activityType : 0;
+  const propertyUse = typeof payload.propertyUse === 'number' ? payload.propertyUse : 1;
+  const buyerType = typeof payload.buyerType === 'number' ? payload.buyerType : 1;
+
+  const riskCategoryData = {
+    activityType,
+    housingType,
+    typeConstruction,
+    propertyUse,
+    buyerType,
+  };
+
   const request = {
     ...payload,
     riskDataAddress,
+    riskCategoryData,
   };
 
   const quote = await quoteRepo.create({
@@ -126,3 +147,4 @@ export async function createPublicQuote(payload: any) {
     propertyId: null
   });
 }
+

@@ -33,6 +33,9 @@ model Property {
   state    String
   zipCode  String
 
+
+  ownerCpfCnpj String?
+  ownerName    String?
   riskCategory     String? // baixo, médio, alto
   constructionYear Int?
   area             Float? // área construída em m²
@@ -127,3 +130,4 @@ model DomainCache {
   value       Json
   lastUpdated DateTime @default(now())
 }
+
