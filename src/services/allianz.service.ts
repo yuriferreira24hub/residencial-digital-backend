@@ -29,10 +29,11 @@ export interface AllianzQuotePayload {
     propertyUse: number;
     typeConstruction: number;
     activityType: number;
+    housingType: number;
   };
   partnerData?: Record<string, string | undefined>;
   riskDataAddress?: Record<string, any>;
-  listCoverage: Array<{ code: string; sumInsured: number }>;
+  listCoverage: Array<{ code: number; sumInsured: number }>;
 }
 
 export interface AllianzQuoteResponse {
@@ -193,13 +194,14 @@ export class AllianzService {
     const token = await this.getAccessToken();
     const url = `${this.baseUrl}/v1/quotes`;
 
-    // Adiciona dados do parceiro/mediador ao payload
-    const fullPayload = {
-      ...payload,
-      mediador: this.mediador,
-      parceiro: this.parceiro,
-      usuario: this.usuario,
-    };
+    // Não adicionar mediador/parceiro/usuario ao payload — devem ir apenas nos headers
+    // Além disso, sanitiza caso o frontend tenha enviado esses campos no corpo
+    const { mediador: _m, parceiro: _p, usuario: _u, ...sanitized } = (payload as any);
+    if (_m || _p || _u) {
+      console.warn("[WARN] Campos mediador/parceiro/usuario vieram no payload do frontend e foram removidos antes do envio aos headers.");
+      console.warn("mediador:", _m ? "presente" : "ausente", "parceiro:", _p ? "presente" : "ausente", "usuario:", _u ? "presente" : "ausente");
+    }
+    const fullPayload = { ...(sanitized as AllianzQuotePayload) };
 
     console.log("=== ALLIANZ REQUEST DEBUG ===");
     console.log("URL:", url);
@@ -211,9 +213,23 @@ export class AllianzService {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
       "Accept": "application/json",
-      "X-IBM-Client-Id": this.username || "",
-      "X-IBM-Client-Secret": this.password || "",
+      // Cabeçalhos específicos do gateway
+      usuario: this.usuario || "",
+      parceiro: this.parceiro || "",
+      mediador: this.mediador || "",
+      cooperativeCode: process.env.ALLIANZ_API_COOPERATIVE_CODE || "",
     };
+
+    // Logs adicionais solicitados para inspeção do payload e headers
+    console.log("=== PAYLOAD ENVIADO PARA A ALLIANZ ===");
+    console.log(JSON.stringify(fullPayload, null, 2));
+    console.log("=== HEADERS ===");
+    // Evita vazar segredos nos logs
+    const redactedHeaders = {
+      ...headers,
+      Authorization: headers["Authorization"] ? "Bearer ****" : headers["Authorization"],
+    } as Record<string, string | undefined>;
+    console.log(redactedHeaders);
 
     const res = await fetch(url, {
       method: "POST",
@@ -228,12 +244,87 @@ export class AllianzService {
       console.error("Status:", res.status);
       console.error("Response:", JSON.stringify(data, null, 2));
       console.error("==============================");
+      // Fallback: em caso de 404, tentar modo de listagem de meios de pagamento (paymentMode: 0)
+      if (res.status === 404) {
+        const fallbackPayload = {
+          ...fullPayload,
+          paymentData: {
+            ...(fullPayload as any).paymentData,
+            paymentMode: 0,
+          },
+        } as AllianzQuotePayload;
+        // remover paymentOption se existir
+        if ((fallbackPayload as any).paymentData) {
+          delete (fallbackPayload as any).paymentData.paymentOption;
+        }
+        console.log("=== FALLBACK PAYMENT MODE 0 ===");
+        console.log("Payload:", JSON.stringify(fallbackPayload, null, 2));
+        const resFallback = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(fallbackPayload),
+        });
+        const dataFallback = await resFallback.json().catch(() => ({}));
+        if (!resFallback.ok) {
+          console.error("=== FALLBACK ERROR RESPONSE ===");
+          console.error("Status:", resFallback.status);
+          console.error("Response:", JSON.stringify(dataFallback, null, 2));
+          console.error("===============================");
+          throw new Error(`Allianz error ${res.status}: ${JSON.stringify(data)}`);
+        }
+        console.log("=== FALLBACK SUCCESS (payment options) ===");
+        return {
+          externalQuoteId: undefined,
+          premiumTotal: undefined,
+          paymentOptions: (dataFallback && dataFallback.paymentOptions) ?? dataFallback,
+          raw: dataFallback,
+        };
+      }
+      // Segunda sondagem: tentar apenas cobertura obrigatória (Incêndio code 1)
+      if (res.status === 404) {
+        const minimalCoveragePayload: AllianzQuotePayload = {
+          ...fullPayload,
+          listCoverage: [{ code: 1, sumInsured: 0 }],
+        };
+        console.log("=== MINIMAL COVERAGE PROBE (code 1) ===");
+        console.log("Payload:", JSON.stringify(minimalCoveragePayload, null, 2));
+        const resMinimal = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(minimalCoveragePayload),
+        });
+        const dataMinimal = await resMinimal.json().catch(() => ({}));
+        if (resMinimal.ok) {
+          console.log("=== MINIMAL COVERAGE SUCCESS ===");
+          return {
+            externalQuoteId: (dataMinimal && (dataMinimal.id || dataMinimal.quoteId)) ?? undefined,
+            premiumTotal: (dataMinimal && (dataMinimal.premiumTotal || dataMinimal.totalPremium)) ?? undefined,
+            paymentOptions: (dataMinimal && dataMinimal.paymentOptions) ?? undefined,
+            raw: dataMinimal,
+          };
+        }
+      }
       throw new Error(`Allianz error ${res.status}: ${JSON.stringify(data)}`);
     }
 
+    // Normaliza diferentes formatos de resposta da Allianz
+    const nested = (data && data.quoteCoverageResponse && data.quoteCoverageResponse.return && data.quoteCoverageResponse.return.value) || null;
+    const nestedPremium = nested?.packages?.premium;
+    const nestedQuoteId = nested?.quotationNumber || nested?.operationNumber;
+
+    // Logs adicionais dos identificadores quando presentes
+    if (nestedQuoteId) {
+      console.log("=== ALLIANZ QUOTE IDS ===");
+      console.log("quotationNumber:", nested?.quotationNumber);
+      console.log("operationNumber:", nested?.operationNumber);
+      console.log("premium:", nestedPremium);
+      console.log("=========================");
+    }
+
     return {
-      externalQuoteId: (data && (data.id || data.quoteId)) ?? undefined,
-      premiumTotal: (data && (data.premiumTotal || data.totalPremium)) ?? undefined,
+      // Preferir quotationNumber, depois operationNumber; só então campos planos
+      externalQuoteId: nestedQuoteId ?? (data && (data.id || data.quoteId)) ?? undefined,
+      premiumTotal: nestedPremium ?? (data && (data.premiumTotal || data.totalPremium)) ?? undefined,
       paymentOptions: (data && data.paymentOptions) ?? undefined,
       raw: data,
     };
