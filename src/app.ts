@@ -7,13 +7,6 @@ import YAML from 'yaml';
 
 import routes from './routes';
 import errorMiddleware from './middlewares/error.middleware';
-
-import propertyRoutes from "./routes/property.routes";
-import policyRoutes from "./routes/policy.routes";
-import authRoutes from "./routes/auth.routes";
-import userRoutes from "./routes/user.routes";
-import quoteRoutes from "./routes/quotes.routes";
-
 import authMiddleware from "./middlewares/auth.middleware";
 
 const app = express();
@@ -36,17 +29,10 @@ try {
 	// Se o arquivo não existir, apenas não monta Swagger
 }
 
-// 🔓 ROTAS PÚBLICAS
-app.use("/v1/auth", authRoutes);
-app.use("/v1/users", userRoutes);
-
-// 🔐 ATIVAR MIDDLEWARE GLOBAL
+// 🔐 Aplica middleware de autenticação (com verificação de rotas públicas internas)
 app.use(authMiddleware);
 
-// 🔐 ROTAS PRIVADAS E PÚBLICAS (gerenciadas pelo middleware)
-app.use("/v1/quotes", quoteRoutes);
-app.use("/v1/properties", propertyRoutes);
-app.use("/v1/policies", policyRoutes);
+// 🌐 Todas as rotas da API
 app.use('/v1', routes);
 
 // MIDDLEWARE DE ERRO

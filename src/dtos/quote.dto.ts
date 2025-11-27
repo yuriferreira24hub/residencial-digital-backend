@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const CoverageSchema = z.object({
-  code: z.string().min(1),
+  code: z.union([z.string().min(1), z.number().int().positive()]),
   sumInsured: z.number().positive(),
 });
 
