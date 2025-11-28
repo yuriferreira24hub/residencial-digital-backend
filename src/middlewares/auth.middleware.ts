@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 
 const publicPaths = [
   "/auth/login",
+  "/auth/logout",
   "/users",
   "/quotes/public"
 ];
@@ -21,13 +22,20 @@ export default function authMiddleware(req: Request, res: Response, next: NextFu
     return next();
   }
 
-  const header = req.headers.authorization;
+  // Prioriza cookie, mas mantém compatibilidade com Authorization header
+  let token = req.cookies?.auth_token;
   
-  if (!header) {
+  // Fallback: tenta ler do header Authorization (para compatibilidade)
+  if (!token) {
+    const header = req.headers.authorization;
+    if (header) {
+      [, token] = header.split(" ");
+    }
+  }
+  
+  if (!token) {
     return res.status(401).json({ message: "Token não informado" });
   }
-
-  const [, token] = header.split(" ");
 
   try {
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
