@@ -6,6 +6,9 @@ export const userService = {
   // 1. Criar usuário
   // ============================
   async createUser(data: any) {
+    console.log("[DEBUG] createUser - data recebido:", JSON.stringify(data, null, 2));
+    console.log("[DEBUG] createUser - data.role:", data.role);
+    
     const existingUser = await prisma.user.findUnique({
       where: { email: data.email },
     });
@@ -21,8 +24,11 @@ export const userService = {
         name: data.name,
         email: data.email,
         passwordHash,
+        role: data.role || "client", 
       },
     });
+    
+    console.log("[DEBUG] createUser - usuário criado:", JSON.stringify(user, null, 2));
 
     return user;
   },
@@ -32,7 +38,7 @@ export const userService = {
   // ============================
   async getUsers() {
     return prisma.user.findMany({
-      select: { id: true, name: true, email: true, createdAt: true },
+      select: { id: true, name: true, email: true, createdAt: true, role: true },
     });
   },
 
@@ -42,7 +48,7 @@ export const userService = {
   async getUserById(id: number) {
     return prisma.user.findUnique({
       where: { id },
-      select: { id: true, name: true, email: true, createdAt: true },
+      select: { id: true, name: true, email: true, createdAt: true, role: true },
     });
   },
 
