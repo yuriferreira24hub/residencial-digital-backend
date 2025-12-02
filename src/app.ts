@@ -15,14 +15,14 @@ const app = express();
 // 🍪 Configuração CORS para permitir cookies cross-origin
 const corsOptions = {
   origin: process.env.FRONTEND_URL || 'http://localhost:3001',
-  credentials: true, // IMPORTANTE: permite envio de cookies
+  credentials: true, // ⚠️ CRÍTICO: permite cookies cross-origin
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
 app.use(cookieParser()); // Parser de cookies
+app.use(express.json());
 
 // 📚 Swagger UI - serve documentação do OpenAPI
 const openapiPath = path.resolve(process.cwd(), 'openapi.yaml');
