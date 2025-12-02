@@ -9,17 +9,16 @@ export async function login(req: Request, res: Response) {
   const isProduction = process.env.NODE_ENV === 'production';
   
   res.cookie('auth_token', result.token, {
-    httpOnly: true,        // Não acessível via JavaScript (proteção XSS)
-    secure: isProduction,  // Apenas HTTPS em produção
-    sameSite: isProduction ? 'strict' : 'lax', // Proteção CSRF
-    maxAge: 3600000,       // 1 hora em milissegundos
-    path: '/',
+  httpOnly: true,        // Não acessível via JavaScript
+  secure: isProduction,  // HTTPS apenas em produção
+  sameSite: isProduction ? 'strict' : 'lax',
+  maxAge: 3600000,       // 1 hora
+  path: '/',
   });
-  
-  // Retorna dados do usuário sem o token
+
   return res.json({
-    message: 'Login realizado com sucesso',
-    user: result.user,
+  message: 'Login realizado com sucesso',
+  user: result.user,     // Token NÃO é retornado no body
   });
 }
 

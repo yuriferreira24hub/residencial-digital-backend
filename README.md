@@ -117,22 +117,46 @@ Base URL: `http://localhost:3000/v1`
   - Quote 1—N Policy
 
 ## 9. Autenticação & Autorização
-- Login: `POST /v1/auth/login`
-- Header: `Authorization: Bearer <token>`
-- `authMiddleware` popula `req.user = { id, role }`
-- Rotas admin exigem `role = "admin"`
 
-Exemplo login:
+### 🍪 Autenticação via Cookies HttpOnly (Recomendado)
+Esta API usa **cookies HttpOnly** para autenticação, aumentando a segurança contra ataques XSS.
+
+**Endpoints:**
+- `POST /v1/auth/login` - Login e define cookie
+- `GET /v1/auth/check` - Verifica se usuário está autenticado
+- `POST /v1/auth/logout` - Remove cookie de autenticação
+
+**Como funciona:**
+1. Após login bem-sucedido, o backend define automaticamente um cookie `auth_token`
+2. O navegador envia esse cookie em todas as requisições subsequentes
+3. O `authMiddleware` valida o token do cookie e popula `req.user = { id, role }`
+
+**Exemplo de Login:**
 ```http
 POST /v1/auth/login
 Content-Type: application/json
 
 { "email": "admin@test.com", "password": "admin123" }
 ```
-Resposta:
+
+**Resposta:**
 ```json
-{ "token": "JWT_TOKEN", "user": { "id": 1, "role": "admin" } }
+{
+  "message": "Login realizado com sucesso",
+  "user": { "id": 1, "email": "admin@test.com", "role": "admin" }
+}
 ```
+
+> 🔒 **Nota:** O token JWT é enviado via cookie `Set-Cookie` no header da resposta, não no body.
+
+**Frontend:** Todas as requisições devem incluir `credentials: 'include'` (Fetch) ou `withCredentials: true` (Axios).
+
+📖 **Documentação completa:**
+- [`COOKIE_AUTH_MIGRATION.md`](./COOKIE_AUTH_MIGRATION.md) - Detalhes da implementação
+- [`FRONTEND_HTTP_CLIENT_EXAMPLE.md`](./FRONTEND_HTTP_CLIENT_EXAMPLE.md) - Exemplos de código
+
+### 🔄 Compatibilidade com Authorization Header
+Por retrocompatibilidade, a API ainda aceita `Authorization: Bearer <token>`, mas o uso de cookies é recomendado.
 
 ## 10. Fluxo de Cotações (Pública vs Autenticada)
 - Pública: `POST /v1/quotes/public`
@@ -167,7 +191,9 @@ Resposta esperada:
 ```
 
 ## 11. Endpoints Principais (Resumo)
-- `POST   /v1/auth/login`         —     Pública    —        Gera JWT
+- `POST   /v1/auth/login`         —     Pública    —        Login (define cookie)
+- `GET    /v1/auth/check`         —     JWT        —        Verifica autenticação
+- `POST   /v1/auth/logout`        —     JWT        —        Logout (limpa cookie)
 - `POST   /v1/users`              —     Pública    —        Cria usuário
 - `GET    /v1/users`              —     Admin      —        Lista usuários
 - `POST   /v1/properties`         —     JWT        —        Cria imóvel
