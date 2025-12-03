@@ -76,6 +76,12 @@ Crie `.env` na raiz:
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/segurodb?schema=public"
 JWT_SECRET="super-secret"
 PORT=3000
+ 
+# Frontend URL para CORS (necessário para cookies HttpOnly)
+FRONTEND_URL="http://localhost:3001"
+
+# Ambiente de execução
+NODE_ENV="development"
 ```
 
 ## 6. Instalação & Execução (PowerShell)
@@ -99,6 +105,9 @@ npx ts-node scripts/create-admin.ts
 
 # Iniciar em desenvolvimento
 npm run dev
+
+# (Opcional) Testar autenticação por cookies
+./scripts/test-cookie-auth.ps1
 ```
 Base URL: `http://localhost:3000/v1`
 
@@ -131,6 +140,10 @@ Esta API usa **cookies HttpOnly** para autenticação, aumentando a segurança c
 2. O navegador envia esse cookie em todas as requisições subsequentes
 3. O `authMiddleware` valida o token do cookie e popula `req.user = { id, role }`
 
+**Requisitos de CORS:**
+- Backend deve ter `credentials: true` habilitado (já configurado em `src/app.ts`)
+- `FRONTEND_URL` no `.env` deve apontar para a origem do frontend (ex.: `http://localhost:3001`)
+
 **Exemplo de Login:**
 ```http
 POST /v1/auth/login
@@ -154,6 +167,8 @@ Content-Type: application/json
 📖 **Documentação completa:**
 - [`COOKIE_AUTH_MIGRATION.md`](./COOKIE_AUTH_MIGRATION.md) - Detalhes da implementação
 - [`FRONTEND_HTTP_CLIENT_EXAMPLE.md`](./FRONTEND_HTTP_CLIENT_EXAMPLE.md) - Exemplos de código
+- [`FRONTEND_MIGRATION_CHECKLIST.md`](./FRONTEND_MIGRATION_CHECKLIST.md) - Checklist para migração
+- [`INDEX_COOKIE_DOCS.md`](./INDEX_COOKIE_DOCS.md) - Índice da documentação
 
 ### 🔄 Compatibilidade com Authorization Header
 Por retrocompatibilidade, a API ainda aceita `Authorization: Bearer <token>`, mas o uso de cookies é recomendado.
