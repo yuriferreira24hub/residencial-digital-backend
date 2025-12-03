@@ -127,7 +127,7 @@ Base URL: `http://localhost:3000/v1`
 
 ## 9. Autenticação & Autorização
 
-### 🍪 Autenticação via Cookies HttpOnly (Recomendado)
+### 🍪 Autenticação via Cookies HttpOnly
 Esta API usa **cookies HttpOnly** para autenticação, aumentando a segurança contra ataques XSS.
 
 **Endpoints:**
@@ -258,26 +258,6 @@ Authorization: Bearer <token_admin>
 - Não expor `JWT_SECRET`
 - Middleware dedicado `requireAdmin`
 - Sanitização de entradas
-
-## 16. Roadmap / Próximas Melhorias
-- Middleware `requireAdmin`
-- Paginação (`skip`/`take`)
-- Enums de status no Prisma
-- Testes (Jest + supertest)
-- Logs estruturados (Pino/Winston)
-- Refresh token & revogação
-- Cache (Redis) para domínios
-- OpenTelemetry
-- Integração externa real
-
-## 17. Contribuição
-- Fork / clone
-- Branch: `feat/minha-feature`
-- (Futuro) testes / linter
-- Pull Request com descrição clara
-
-## 18. Licença
-MIT (ajustável conforme necessidade)
 
 ## OpenAPI & Swagger UI
 - `openapi.yaml` descreve os endpoints
