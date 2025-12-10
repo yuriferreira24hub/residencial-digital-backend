@@ -4,6 +4,13 @@ import { policyRepo } from "../repositories/policy.repo";
 
 import { AllianzService } from "../services/allianz.service";
 export async function createQuote(payload: any, userId: number) {
+  console.log("=== CRIANDO COTAÇÃO ===");
+  console.log("User ID:", userId);
+  console.log("Property ID:", payload.propertyId);
+  console.log("Coverage codes:", payload.listCoverage?.map((c: any) => c.code).join(", "));
+  console.log("Payment Mode:", payload.paymentData?.paymentMode);
+  console.log("=======================");
+
   const property = await propertyRepo.findById(payload.propertyId);
 
   if (!property || property.userId !== userId) {
@@ -66,6 +73,20 @@ export async function createQuote(payload: any, userId: number) {
   };
 
   console.log("=== SENDING TO ALLIANZ ===");
+  console.log("Payload structure:");
+  console.log("  - assistanceType:", allianzPayload.assistanceType);
+  console.log("  - guaranteeType:", allianzPayload.guaranteeType);
+  console.log("  - insuranceType:", allianzPayload.insuranceType);
+  console.log("  - initialDateInsurance:", allianzPayload.initialDateInsurance);
+  console.log("  - isopainel:", allianzPayload.isopainel);
+  console.log("  - clientName:", allianzPayload.clientName);
+  console.log("  - cpfCnpj:", allianzPayload.cpfCnpj);
+  console.log("  - coverages:", allianzPayload.listCoverage?.length, "items");
+  console.log("  - paymentMode:", (allianzPayload as any).paymentData?.paymentMode);
+  console.log("  - paymentOption:", (allianzPayload as any).paymentData?.paymentOption);
+  console.log("  - riskDataAddress.city:", allianzPayload.riskDataAddress?.city);
+  console.log("  - riskDataAddress.state:", allianzPayload.riskDataAddress?.state);
+  console.log("  - riskCategoryData:", JSON.stringify(allianzPayload.riskCategoryData));
   console.log("Payload:", JSON.stringify(allianzPayload, null, 2));
   console.log("========================");
 
@@ -75,6 +96,13 @@ export async function createQuote(payload: any, userId: number) {
   const request = { ...payload, riskDataAddress, riskCategoryData };
 
   const isPaymentOptions = request?.paymentData?.paymentMode === 0;
+
+  console.log("=== RESPOSTA DA ALLIANZ PROCESSADA ===");
+  console.log("externalQuoteId:", allianz.externalQuoteId);
+  console.log("premiumTotal:", allianz.premiumTotal);
+  console.log("paymentOptions count:", allianz.paymentOptions?.length || 0);
+  console.log("Status será:", isPaymentOptions ? "payment-options" : "pending");
+  console.log("=====================================");
 
   const quote = await quoteRepo.create({
     userId,
@@ -90,6 +118,8 @@ export async function createQuote(payload: any, userId: number) {
   return {
     message: "Cotação criada com sucesso",
     quote,
+    allianzExternalQuoteId: allianz.externalQuoteId,
+    allianzRaw: allianz.raw,
   };
 }
 
