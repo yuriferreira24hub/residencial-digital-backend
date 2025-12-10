@@ -192,7 +192,8 @@ export class AllianzService {
     }
 
     const token = await this.getAccessToken();
-    const url = `${this.baseUrl}/v1/quotes`;
+    // Endpoint legado solicitado: /api-in-household-azb/v1/cotacoes
+    const url = `${this.baseUrl}/v1/cotacoes`;
 
     // Não adicionar mediador/parceiro/usuario ao payload — devem ir apenas nos headers
     // Além disso, sanitiza caso o frontend tenha enviado esses campos no corpo
@@ -323,9 +324,11 @@ export class AllianzService {
       throw new Error(`Allianz error ${res.status}: ${JSON.stringify(data)}`);
     }
 
-    // Normaliza diferentes formatos de resposta da Allianz
-    const nested = (data && data.quoteCoverageResponse && data.quoteCoverageResponse.return && data.quoteCoverageResponse.return.value) || null;
-    const nestedPremium = nested?.packages?.premium;
+    // Normaliza formato legado /api-in-household-azb/v1/cotacoes
+    const nested = data?.quoteResponse?.return?.value || null;
+    const packages = Array.isArray(nested?.packages) ? nested.packages : undefined;
+    const firstPackage = packages?.[0];
+    const nestedPremium = firstPackage?.premium ?? nested?.premium ?? data?.premiumTotal ?? data?.totalPremium;
     const nestedQuoteId =
       nested?.quotationNumber ||
       nested?.operationNumber ||
@@ -341,14 +344,15 @@ export class AllianzService {
     console.log("Status: OK");
     console.log("quotationNumber:", nested?.quotationNumber || data?.quotationNumber);
     console.log("operationNumber:", nested?.operationNumber || data?.operationNumber);
-    console.log("premium:", nestedPremium || data?.premiumTotal || data?.totalPremium);
+    console.log("premium:", nestedPremium);
     console.log("quoteId/id:", data?.quoteId || data?.id);
+    console.log("packages count:", packages?.length || 0);
     console.log("===============================");
 
     return {
       // Preferir quotationNumber/operationNumber (nested ou plano); fallback para id genérico
       externalQuoteId: nestedQuoteId ?? undefined,
-      premiumTotal: nestedPremium ?? (data && (data.premiumTotal || data.totalPremium)) ?? undefined,
+      premiumTotal: nestedPremium ?? undefined,
       paymentOptions: (data && data.paymentOptions) ?? undefined,
       raw: data,
     };
