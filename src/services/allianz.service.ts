@@ -231,18 +231,34 @@ export class AllianzService {
     } as Record<string, string | undefined>;
     console.log(redactedHeaders);
 
+    console.log("=== ENVIANDO REQUISIÇÃO PARA ALLIANZ ===");
+    console.log("Método: POST");
+    console.log("URL:", url);
+    console.log("Headers completos:", redactedHeaders);
+    console.log("Body size:", JSON.stringify(fullPayload).length, "bytes");
+    console.log("=========================================");
+
     const res = await fetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify(fullPayload),
     });
 
+    console.log("=== RESPOSTA DA ALLIANZ RECEBIDA ===");
+    console.log("Status HTTP:", res.status);
+    console.log("Status OK:", res.ok);
+    console.log("Content-Type:", res.headers.get("content-type"));
+    console.log("Content-Length:", res.headers.get("content-length"));
+    console.log("====================================");
+
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
       console.error("=== ALLIANZ ERROR RESPONSE ===");
       console.error("Status:", res.status);
-      console.error("Response:", JSON.stringify(data, null, 2));
+      console.error("Status Text:", res.statusText);
+      console.error("Response Body:", JSON.stringify(data, null, 2));
+      console.error("Response Keys:", Object.keys(data));
       console.error("==============================");
       // Fallback: em caso de 404, tentar modo de listagem de meios de pagamento (paymentMode: 0)
       if (res.status === 404) {
@@ -310,20 +326,28 @@ export class AllianzService {
     // Normaliza diferentes formatos de resposta da Allianz
     const nested = (data && data.quoteCoverageResponse && data.quoteCoverageResponse.return && data.quoteCoverageResponse.return.value) || null;
     const nestedPremium = nested?.packages?.premium;
-    const nestedQuoteId = nested?.quotationNumber || nested?.operationNumber;
+    const nestedQuoteId =
+      nested?.quotationNumber ||
+      nested?.operationNumber ||
+      nested?.quoteNumber ||
+      nested?.quoteId ||
+      data?.operationNumber ||
+      data?.quotationNumber ||
+      data?.quoteId ||
+      data?.id;
 
-    // Logs adicionais dos identificadores quando presentes
-    if (nestedQuoteId) {
-      console.log("=== ALLIANZ QUOTE IDS ===");
-      console.log("quotationNumber:", nested?.quotationNumber);
-      console.log("operationNumber:", nested?.operationNumber);
-      console.log("premium:", nestedPremium);
-      console.log("=========================");
-    }
+    // Logs adicionais para sucesso, facilitando inspeção quando quotationNumber vem vazio
+    console.log("=== ALLIANZ SUCCESS RESPONSE ===");
+    console.log("Status: OK");
+    console.log("quotationNumber:", nested?.quotationNumber || data?.quotationNumber);
+    console.log("operationNumber:", nested?.operationNumber || data?.operationNumber);
+    console.log("premium:", nestedPremium || data?.premiumTotal || data?.totalPremium);
+    console.log("quoteId/id:", data?.quoteId || data?.id);
+    console.log("===============================");
 
     return {
-      // Preferir quotationNumber, depois operationNumber; só então campos planos
-      externalQuoteId: nestedQuoteId ?? (data && (data.id || data.quoteId)) ?? undefined,
+      // Preferir quotationNumber/operationNumber (nested ou plano); fallback para id genérico
+      externalQuoteId: nestedQuoteId ?? undefined,
       premiumTotal: nestedPremium ?? (data && (data.premiumTotal || data.totalPremium)) ?? undefined,
       paymentOptions: (data && data.paymentOptions) ?? undefined,
       raw: data,
